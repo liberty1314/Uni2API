@@ -816,6 +816,100 @@ class TempMailLolProvider(BaseMailProvider):
         self.session.close()
 
 
+class TempMailPlusProvider(BaseMailProvider):
+    name = "tempmail_plus"
+
+    def __init__(self, entry: dict, conf: dict):
+        super().__init__(conf, str(entry.get("provider_ref") or ""))
+        self.api_base = str(entry.get("api_base") or "https://tempmail.plus").strip().rstrip("/") or "https://tempmail.plus"
+        self.domain = _normalize_string_list(entry.get("domain"))
+        self.mailbox_name = str(entry.get("mailbox_name") or "").strip()
+        self.inbox_address = str(entry.get("inbox_address") or "").strip()
+        self.epin = str(entry.get("epin") or "").strip()
+        self.session = _create_session(conf)
+        self.session.headers.update({"User-Agent": conf["user_agent"], "Accept": "application/json"})
+
+    def _masked_body(self, body: str) -> str:
+        summary = str(body or "")[:300]
+        return summary.replace(self.epin, "***") if self.epin else summary
+
+    def _request(self, path: str, params: dict[str, str]) -> dict[str, Any]:
+        response = self.session.request(
+            "GET",
+            f"{self.api_base}{path}",
+            params=params,
+            timeout=self.conf["request_timeout"],
+            verify=False,
+        )
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"TempMail.plus 收件箱无权访问或接口异常: GET {path}, "
+                f"HTTP {response.status_code}, body={self._masked_body(response.text)}"
+            )
+        try:
+            data = response.json()
+        except Exception as error:
+            raise RuntimeError(f"TempMail.plus GET {path} 返回无效 JSON") from error
+        if not isinstance(data, dict):
+            raise RuntimeError(f"TempMail.plus GET {path} 返回结构不是对象")
+        return data
+
+    def create_mailbox(self, username: str | None = None) -> dict[str, Any]:
+        domain = _next_domain(self.domain)
+        prefix = str(username or self.mailbox_name or _random_mailbox_name()).strip()
+        address = f"{prefix}@{domain}"
+        return {
+            "provider": self.name,
+            "provider_ref": self.provider_ref,
+            "address": address,
+            "inbox_address": self.inbox_address or address,
+        }
+
+    @staticmethod
+    def _message_sort_key(item: dict[str, Any]) -> tuple[float, int, str]:
+        received_at = _parse_received_at(item.get("time") or item.get("date"))
+        mail_id = str(item.get("mail_id") or "").strip()
+        numeric_id = int(mail_id) if mail_id.isdigit() else 0
+        timestamp = received_at.timestamp() if received_at else 0.0
+        return timestamp, numeric_id, mail_id
+
+    def fetch_latest_message(self, mailbox: dict[str, Any]) -> dict[str, Any] | None:
+        inbox_address = str(mailbox.get("inbox_address") or mailbox.get("address") or "").strip()
+        if not inbox_address:
+            raise RuntimeError("TempMail.plus 缺少收件箱地址")
+        params = {"email": inbox_address}
+        if self.epin:
+            params["epin"] = self.epin
+        listing = self._request("/api/mails", params)
+        items = listing.get("mail_list")
+        if not isinstance(items, list):
+            raise RuntimeError("TempMail.plus mail_list 返回结构不是数组")
+        messages = [item for item in items if isinstance(item, dict)]
+        if not messages:
+            return None
+        summary = max(messages, key=self._message_sort_key)
+        message_id = str(summary.get("mail_id") or "").strip()
+        if not message_id:
+            raise RuntimeError("TempMail.plus 最新邮件缺少 mail_id")
+        detail = self._request(f"/api/mails/{message_id}", params)
+        text_content, html_content = _extract_content(detail)
+        sender = detail.get("from_mail") or detail.get("from") or summary.get("from_mail") or ""
+        return {
+            "provider": self.name,
+            "mailbox": inbox_address,
+            "message_id": message_id,
+            "subject": str(detail.get("subject") or summary.get("subject") or ""),
+            "sender": str(sender),
+            "text_content": text_content,
+            "html_content": html_content,
+            "received_at": _parse_received_at(detail.get("date") or detail.get("time") or summary.get("time")),
+            "raw": detail,
+        }
+
+    def close(self) -> None:
+        self.session.close()
+
+
 class DuckMailProvider(BaseMailProvider):
     name = "duckmail"
 
@@ -1471,6 +1565,8 @@ def _create_provider(mail_config: dict, provider: str = "", provider_ref: str = 
         return DDGMailProvider(entry, conf)
     if entry["type"] == "tempmail_lol":
         return TempMailLolProvider(entry, conf)
+    if entry["type"] == "tempmail_plus":
+        return TempMailPlusProvider(entry, conf)
     if entry["type"] == "duckmail":
         return DuckMailProvider(entry, conf)
     if entry["type"] == "gptmail":
