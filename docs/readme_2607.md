@@ -19,3 +19,20 @@
     - docs/design/assets/work-ocean.jpg
     - docs/design/uni2api-frontend-redesign.md
     - docs/readme_2607.md
+
+- [2026-07-12 11:46] docs(frontend): 新增前端重设计变更规格
+  - Body: 新增 OpenSpec 前端重设计提案、技术设计、能力规格与分阶段实施任务，明确应用壳层、角色工作台、Soft UI、创作及运维工作流的验收约束。
+  - Files:
+    - .gitignore
+    - openspec/changes/redesign-uni2api-frontend/.openspec.yaml
+    - openspec/changes/redesign-uni2api-frontend/design.md
+    - openspec/changes/redesign-uni2api-frontend/proposal.md
+    - openspec/changes/redesign-uni2api-frontend/specs/console-app-shell/spec.md
+    - openspec/changes/redesign-uni2api-frontend/specs/image-creation-workflow/spec.md
+    - openspec/changes/redesign-uni2api-frontend/specs/operations-management-workflows/spec.md
+    - openspec/changes/redesign-uni2api-frontend/specs/responsive-accessible-console/spec.md
+    - openspec/changes/redesign-uni2api-frontend/specs/role-adaptive-workspace/spec.md
+    - openspec/changes/redesign-uni2api-frontend/specs/soft-ui-design-system/spec.md
+    - openspec/changes/redesign-uni2api-frontend/tasks.md
+    - openspec/config.yaml
+    - docs/readme_2607.md
