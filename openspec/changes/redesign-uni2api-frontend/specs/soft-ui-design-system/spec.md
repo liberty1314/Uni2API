@@ -33,6 +33,32 @@
 - **WHEN** 异步提交正在执行
 - **THEN** 系统 SHALL 禁用重复提交、保留原按钮宽高，并提供可访问的加载状态
 
+### Requirement: 统一组件来源与本地适配
+系统 SHALL 使用 shadcn/ui、21st.dev Community Components 和 Uiverse Elements 作为组件候选来源，但 MUST 通过本地 Uni2API 适配层提供统一的 tokens、语义、图标、状态、响应式和动效行为。
+
+#### Scenario: 采用基础交互原语
+- **WHEN** 实现按钮、输入、选择、checkbox、dialog、sheet、popover、tabs、table、calendar 或 toast
+- **THEN** 系统 SHALL 以 shadcn/ui 和其 Radix 行为作为基础，并将外部视觉候选适配到该原语，而不得用无语义的外部标记替换它
+
+#### Scenario: 采用复合结构或微交互
+- **WHEN** 实现侧栏、命令面板、仪表盘区块、空状态、上传预览或 Soft UI 微交互
+- **THEN** 实施者 SHALL 先评估 21st.dev 和 Uiverse Elements 候选，并将选中候选本地化为使用 Uni2API tokens 和 Lucide 的组件
+
+#### Scenario: 外部候选存在默认视觉语言
+- **WHEN** 已选中的外部候选包含原始 palette、字体、圆角、阴影、动画、图标、演示文案或远程资源
+- **THEN** 系统 MUST 删除或替换这些默认元素，使其不覆盖 Uni2API 设计系统或运行时加载第三方 CSS/JS
+
+### Requirement: 组件来源审计
+系统 SHALL 为每个新增或重构的复合组件记录三来源候选、作者/链接/许可证、评估结果、最终本地路径及拒绝理由。
+
+#### Scenario: 选择组件候选
+- **WHEN** 实施者准备新增或重构复合前端组件
+- **THEN** 组件来源清单 SHALL 包含功能适配、栈适配、视觉适配、响应式、无障碍、适配成本和维护风险的评估，以及接受或拒绝结论
+
+#### Scenario: 来源不可访问或许可证不明确
+- **WHEN** 21st.dev 或 Uiverse Elements 候选无法访问、许可证不明确或无法满足无障碍要求
+- **THEN** 实施者 MUST 记录该原因并拒绝或暂缓该候选，而不得伪造来源或直接采用未经审查的代码
+
 ### Requirement: 主题偏好迁移
 系统 SHALL 在不丢失旧用户偏好的前提下将主题存储迁移到 Uni2API 命名空间。
 

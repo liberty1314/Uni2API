@@ -294,6 +294,77 @@ export type ImageTask = {
   duration_ms?: number;
 };
 
+export type DashboardSeverity = "ok" | "warning" | "critical";
+
+export type DashboardAction = {
+  id: "create" | "diagnose";
+  label: string;
+  href: string;
+  blocked: boolean;
+};
+
+export type DashboardAlert = {
+  severity: "warning" | "critical";
+  code: string;
+  title: string;
+  detail: string;
+  action: string;
+  href: string;
+};
+
+export type DashboardTask = Pick<ImageTask, "id" | "status" | "mode" | "model" | "created_at" | "updated_at"> & {
+  image_url?: string;
+};
+
+export type DashboardTasks = {
+  queued: number;
+  running: number;
+  success: number;
+  error: number;
+  unfinished: number;
+  recent: DashboardTask[];
+};
+
+type DashboardSummaryBase = {
+  severity: DashboardSeverity;
+  primary_action: DashboardAction;
+  tasks: DashboardTasks;
+  available_models: ImageModel[];
+  alerts: DashboardAlert[];
+};
+
+export type DashboardUserSummary = DashboardSummaryBase & {
+  role: "user";
+};
+
+export type DashboardAdminSummary = DashboardSummaryBase & {
+  role: "admin";
+  accounts: {
+    healthy: boolean;
+    status: string;
+    total: number;
+    active: number;
+    limited: number;
+    abnormal: number;
+    disabled: number;
+    total_quota: number;
+  };
+  calls: {
+    total: number;
+    success: number;
+    failed: number;
+    success_rate: number | null;
+  };
+  proxy: ProxyRuntimeStatus;
+  recent_images: Array<{
+    task_id: string;
+    url: string;
+    created_at: string;
+  }>;
+};
+
+export type DashboardSummary = DashboardAdminSummary | DashboardUserSummary;
+
 type ImageTaskListResponse = {
   items: ImageTask[];
   missing_ids: string[];
@@ -526,6 +597,10 @@ export async function updateSettingsConfig(settings: SettingsConfig) {
 
 export async function fetchThirdPartyApps() {
   return httpRequest<{ third_party_apps: ThirdPartyAppsSettings }>("/api/third-party-apps");
+}
+
+export async function fetchDashboardSummary() {
+  return httpRequest<DashboardSummary>("/api/dashboard/summary");
 }
 
 export async function testBackupConnection() {

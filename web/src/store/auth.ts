@@ -40,7 +40,7 @@ function normalizeSession(value: unknown, fallbackKey = ""): StoredAuthSession |
 }
 
 export function getDefaultRouteForRole(role: AuthRole) {
-  return role === "admin" ? "/accounts" : "/image";
+  return "/";
 }
 
 export async function getStoredAuthKey() {
@@ -56,10 +56,21 @@ export async function getStoredAuthSession() {
     return null;
   }
 
-  const [storedKey, storedSession] = await Promise.all([
-    authStorage.getItem<string>(AUTH_KEY_STORAGE_KEY),
-    authStorage.getItem<StoredAuthSession>(AUTH_SESSION_STORAGE_KEY),
-  ]);
+  let storedKey: string | null = null;
+  let storedSession: StoredAuthSession | null = null;
+  try {
+    const readPromise = Promise.all([
+      authStorage.getItem<string>(AUTH_KEY_STORAGE_KEY),
+      authStorage.getItem<StoredAuthSession>(AUTH_SESSION_STORAGE_KEY),
+    ]);
+    const timeoutPromise = new Promise<[string | null, StoredAuthSession | null]>((resolve) => {
+      window.setTimeout(() => resolve([null, null]), 800);
+    });
+    [storedKey, storedSession] = await Promise.race([readPromise, timeoutPromise]);
+  } catch {
+    // IndexedDB/localForage 读取失败时按未登录处理，不阻塞登录页渲染。
+    return null;
+  }
 
   const normalizedSession = normalizeSession(storedSession, String(storedKey || ""));
   if (normalizedSession) {

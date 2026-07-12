@@ -191,6 +191,73 @@ class ImageTaskService:
                 missing_ids = []
             return {"items": items, "missing_ids": missing_ids}
 
+    def dashboard_summary(self, identity: dict[str, object], *, include_all: bool) -> dict[str, Any]:
+        """Return bounded task data for a workspace without exposing task payloads."""
+        owner = _owner_id(identity)
+        with self._lock:
+            if self._cleanup_locked():
+                self._save_locked()
+            tasks = [
+                _public_task(task)
+                for task in self._tasks.values()
+                if include_all or task.get("owner_id") == owner
+            ]
+
+        tasks.sort(key=lambda item: str(item.get("updated_at") or ""), reverse=True)
+        counts = {
+            TASK_STATUS_QUEUED: 0,
+            TASK_STATUS_RUNNING: 0,
+            TASK_STATUS_SUCCESS: 0,
+            TASK_STATUS_ERROR: 0,
+        }
+        for task in tasks:
+            status = _clean(task.get("status"))
+            if status in counts:
+                counts[status] += 1
+
+        recent = []
+        recent_images = []
+        models: list[str] = []
+        for task in tasks[:8]:
+            model = _clean(task.get("model"))
+            if model and model not in models:
+                models.append(model)
+            image_urls = _collect_image_urls(task.get("data") if isinstance(task.get("data"), list) else [])
+            item = {
+                "id": task.get("id"),
+                "status": task.get("status"),
+                "mode": task.get("mode"),
+                "model": model,
+                "created_at": task.get("created_at"),
+                "updated_at": task.get("updated_at"),
+            }
+            if image_urls:
+                item["image_url"] = image_urls[0]
+            recent.append(item)
+            for url in image_urls:
+                recent_images.append(
+                    {
+                        "task_id": task.get("id"),
+                        "url": url,
+                        "created_at": task.get("updated_at"),
+                    }
+                )
+                if len(recent_images) >= 8:
+                    break
+            if len(recent_images) >= 8:
+                break
+
+        return {
+            "queued": counts[TASK_STATUS_QUEUED],
+            "running": counts[TASK_STATUS_RUNNING],
+            "success": counts[TASK_STATUS_SUCCESS],
+            "error": counts[TASK_STATUS_ERROR],
+            "unfinished": counts[TASK_STATUS_QUEUED] + counts[TASK_STATUS_RUNNING],
+            "recent": recent,
+            "recent_images": recent_images,
+            "models": models[:8],
+        }
+
     def _submit(
         self,
         identity: dict[str, object],

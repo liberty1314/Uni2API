@@ -87,6 +87,43 @@ class LogService:
                 break
         return items
 
+    def call_stats_since(self, since: datetime, *, max_lines: int = 5000) -> dict[str, Any]:
+        """Aggregate a bounded recent call window without returning raw logs."""
+        if not self.path.exists():
+            return {"total": 0, "success": 0, "failed": 0, "success_rate": None}
+
+        cutoff = since.replace(tzinfo=None)
+        total = 0
+        success = 0
+        failed = 0
+        lines = self.path.read_text(encoding="utf-8").splitlines()
+        for line_number in range(len(lines) - 1, max(-1, len(lines) - max_lines - 1), -1):
+            item = self._parse_line(lines[line_number], line_number)
+            if item is None or item.get("type") != LOG_TYPE_CALL:
+                continue
+            try:
+                created_at = datetime.strptime(str(item.get("time") or ""), "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                continue
+            if created_at < cutoff:
+                break
+            detail = item.get("detail") if isinstance(item.get("detail"), dict) else {}
+            status = str(detail.get("status") or "").strip().lower()
+            if status not in {"success", "failed"}:
+                continue
+            total += 1
+            if status == "success":
+                success += 1
+            else:
+                failed += 1
+
+        return {
+            "total": total,
+            "success": success,
+            "failed": failed,
+            "success_rate": success / total if total else None,
+        }
+
     def delete(self, ids: list[str]) -> dict[str, int]:
         target_ids = {str(item or "").strip() for item in ids if str(item or "").strip()}
         if not self.path.exists() or not target_ids:

@@ -36,3 +36,55 @@
     - openspec/changes/redesign-uni2api-frontend/tasks.md
     - openspec/config.yaml
     - docs/readme_2607.md
+
+- [2026-07-12 20:13] feat(dashboard): 新增角色自适应工作台与控制台壳层
+  - Body: 新增按角色隔离的工作台汇总接口、运行信号与快捷创作流程，并落地响应式控制台壳层、Soft UI 基础组件、主题及认证迁移。同步补充后端测试、组件来源治理、旧路由退役规范和桌面与移动端验收截图。
+  - Files:
+    - api/app.py
+    - api/dashboard.py
+    - docs/design/uni2api-frontend-redesign.md
+    - openspec/changes/redesign-uni2api-frontend/component-sourcing-register.md
+    - openspec/changes/redesign-uni2api-frontend/design.md
+    - openspec/changes/redesign-uni2api-frontend/legacy-route-retirement-map.md
+    - openspec/changes/redesign-uni2api-frontend/proposal.md
+    - openspec/changes/redesign-uni2api-frontend/specs/component-sourcing-governance/spec.md
+    - openspec/changes/redesign-uni2api-frontend/specs/legacy-frontend-retirement/spec.md
+    - openspec/changes/redesign-uni2api-frontend/specs/soft-ui-design-system/spec.md
+    - openspec/changes/redesign-uni2api-frontend/tasks.md
+    - output/playwright/admin-dashboard-1440.png
+    - output/playwright/admin-dashboard-375-fixed.png
+    - pyproject.toml
+    - services/image_task_service.py
+    - services/log_service.py
+    - test/test_dashboard_api.py
+    - uv.lock
+    - web/src/app/globals.css
+    - web/src/app/image/page.tsx
+    - web/src/app/layout.tsx
+    - web/src/app/login/page.tsx
+    - web/src/app/page.tsx
+    - web/src/app/users/page.tsx
+    - web/src/components/console/command-menu.tsx
+    - web/src/components/console/console-shell.tsx
+    - web/src/components/console/dashboard-signal-group.tsx
+    - web/src/components/console/empty-state.tsx
+    - web/src/components/console/navigation.ts
+    - web/src/components/console/quick-create-panel.tsx
+    - web/src/components/console/theme-control.tsx
+    - web/src/components/theme-script.tsx
+    - web/src/components/ui/badge.tsx
+    - web/src/components/ui/button.tsx
+    - web/src/components/ui/card.tsx
+    - web/src/components/ui/dialog.tsx
+    - web/src/components/ui/input.tsx
+    - web/src/components/ui/select.tsx
+    - web/src/components/ui/sheet.tsx
+    - web/src/components/ui/table.tsx
+    - web/src/components/ui/tabs.tsx
+    - web/src/components/ui/textarea.tsx
+    - web/src/components/ui/tooltip.tsx
+    - web/src/lib/api.ts
+    - web/src/lib/use-auth-guard.ts
+    - web/src/lib/workspace-draft.ts
+    - web/src/store/auth.ts
+    - docs/readme_2607.md

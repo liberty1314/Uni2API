@@ -12,14 +12,14 @@ const badgeVariants = cva(
         secondary: "border-transparent bg-secondary text-secondary-foreground",
         outline: "border-border bg-background text-foreground",
         success:
-          "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300",
+          "border-[color-mix(in_srgb,var(--ui-success)_28%,transparent)] bg-[color-mix(in_srgb,var(--ui-success)_12%,transparent)] text-[var(--ui-success)]",
         warning:
-          "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300",
+          "border-[color-mix(in_srgb,var(--ui-warning)_28%,transparent)] bg-[color-mix(in_srgb,var(--ui-warning)_12%,transparent)] text-[var(--ui-warning)]",
         danger:
-          "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300",
-        info: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-300",
+          "border-[color-mix(in_srgb,var(--ui-danger)_28%,transparent)] bg-[color-mix(in_srgb,var(--ui-danger)_12%,transparent)] text-[var(--ui-danger)]",
+        info: "border-[color-mix(in_srgb,var(--ui-primary)_28%,transparent)] bg-[color-mix(in_srgb,var(--ui-primary)_12%,transparent)] text-[var(--ui-primary)]",
         violet:
-          "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-300",
+          "border-[color-mix(in_srgb,var(--ui-creative)_28%,transparent)] bg-[color-mix(in_srgb,var(--ui-creative)_12%,transparent)] text-[var(--ui-creative)]",
       },
     },
     defaultVariants: {

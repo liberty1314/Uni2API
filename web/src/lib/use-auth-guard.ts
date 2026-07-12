@@ -15,6 +15,13 @@ type UseAuthGuardResult = {
   session: StoredAuthSession | null;
 };
 
+async function loadSessionWithTimeout() {
+  const timeout = new Promise<null>((resolve) => {
+    window.setTimeout(() => resolve(null), 1500);
+  });
+  return Promise.race([getValidatedAuthSession(), timeout]);
+}
+
 export function useAuthGuard(allowedRoles?: AuthRole[]): UseAuthGuardResult {
   const router = useRouter();
   const [session, setSession] = useState<StoredAuthSession | null>(null);
@@ -26,7 +33,7 @@ export function useAuthGuard(allowedRoles?: AuthRole[]): UseAuthGuardResult {
 
     const load = async () => {
       const roleList = allowedRolesKey ? (allowedRolesKey.split(",") as AuthRole[]) : [];
-      const storedSession = await getValidatedAuthSession();
+      const storedSession = await loadSessionWithTimeout().catch(() => null);
       if (!active) {
         return;
       }
@@ -66,7 +73,7 @@ export function useRedirectIfAuthenticated() {
     let active = true;
 
     const load = async () => {
-      const storedSession = await getValidatedAuthSession();
+      const storedSession = await loadSessionWithTimeout().catch(() => null);
       if (!active) {
         return;
       }

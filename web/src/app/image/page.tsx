@@ -31,6 +31,7 @@ import {
 } from "@/lib/api";
 import { useAuthGuard } from "@/lib/use-auth-guard";
 import { useSettingsStore } from "@/app/settings/store";
+import { consumeWorkspaceQuickCreateDraft } from "@/lib/workspace-draft";
 import {
   clearImageConversations,
   deleteImageConversation,
@@ -494,6 +495,7 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
     taskId: string;
     taskError: string;
   } | null>(null);
+  const consumedDraftRef = useRef<string | null>(null);
 
   const parsedCount = useMemo(() => Number(clampImageCount(imageCount)), [imageCount]);
   const selectedConversation = useMemo(
@@ -684,6 +686,26 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
       }
     };
   }, [loadHistory]);
+
+  useEffect(() => {
+    const draftId = new URLSearchParams(window.location.search).get("draft");
+    if (!draftId || consumedDraftRef.current === draftId) return;
+    consumedDraftRef.current = draftId;
+    let active = true;
+    void consumeWorkspaceQuickCreateDraft(draftId).then((draft) => {
+      if (!active || !draft) return;
+      setImagePrompt(draft.prompt);
+      setImageModel(draft.model || "gpt-image-2");
+      setImageRatio(draft.ratio || "1:1");
+      setImageQuality(draft.quality || "auto");
+      setImageCount(clampImageCount(draft.count || "1"));
+      setReferenceImages(draft.referenceImages || []);
+      setReferenceImageFiles((draft.referenceImages || []).map((image) => dataUrlToFile(image.dataUrl, image.name, image.type)));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

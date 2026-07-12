@@ -303,15 +303,31 @@ Uni2API
 - 动态任务、错误和 Toast 使用合适的 live region，不主动抢焦点。
 - 路由切换后焦点移动到主标题；关闭弹层后返回触发元素。
 
-## 12. 21st.dev 组件复用策略
+## 12. 组件库选择与统一策略
 
-已优先检索 21st.dev Community Components 的 `sidebar`、`table`、`upload/download`、`tabs`、`dialog`、`empty state` 与 `AI chat` 类型。设计阶段选择借鉴这些候选的结构与交互模式，但实施时以项目已有 shadcn/Radix 组件为行为基础，原因如下：
+前端采用三来源组件策略，但所有最终组件必须表现为同一套 Uni2API Soft UI，而不是混合三套默认风格。组件代码在本地维护，不在运行时从第三方站点加载 CSS、JavaScript、字体或图标。
 
-- Sidebar 候选：借鉴折叠分组与移动抽屉；改造成 Soft UI 云雾蓝表面和角色权限分组。
-- Table 候选：借鉴固定表头、列排序与批量操作栏；保留项目数据结构和现有请求流。
-- Upload 候选：借鉴拖放区与文件预览；统一用于参考图、账户导入和配置导入。
-- Tabs / Dialog 候选：仅复用成熟交互结构，视觉全部归一到本方案 tokens。
-- 拒绝大幅引入营销型 dashboard 卡片、复杂动画和额外依赖，因为它们会破坏高密度管理体验并增加维护成本。
+| 来源 | 在 Uni2API 中的职责 | 候选类型 | 使用约束 |
+| --- | --- | --- | --- |
+| `shadcn/ui` | 语义和可访问性基础原语 | Button、Input、Textarea、Select、Checkbox、Dialog、Sheet、Popover、Tabs、Table、Calendar、Toast | 保持 Radix 的键盘、焦点、ARIA 行为；外部样式只能适配在这些原语之上 |
+| [21st.dev Community Components](https://21st.dev/community/components) | 复合布局与复杂交互候选 | Sidebar、Command menu、Dashboard、Table、Upload、Tabs、Dialog、Empty state、AI chat | 每个目标按功能、交互、风格检索 2–4 个候选，评估后本地化结构和交互 |
+| [Uiverse Elements](https://uiverse.io/elements) | Soft UI 视觉和微交互候选 | Button/Input 表面、toggle、loader、tooltip、card 反馈、轻量空状态 | 仅采用许可证清晰、可访问、可本地化的 CSS/最小标记；不能替换 shadcn 语义元素，不能引入连续装饰动画 |
+
+### 12.1 统一适配规则
+
+- `web/src/components/ui/` 是基础原语唯一出口；`web/src/components/console/` 放置由 21st/Uiverse 适配而来的业务复合组件。
+- 每个采用/拒绝候选都记录来源链接、作者、许可证、功能/栈/视觉/响应式/无障碍/适配成本/维护风险评估，以及最终本地路径。
+- 选中候选必须删除或替换原始配色、字体、圆角、阴影、动画、图标、演示文案和远程资源，改用 Uni2API tokens、Lucide、真实数据流和既有状态管理。
+- 每个本地化组件都必须实现 default、hover、focus-visible、active、disabled、loading、error；普通文字对比度不低于 `4.5:1`，交互面积不小于 `44×44px`。
+- Uiverse 当前若受站点访问限制，实施者必须记录来源不可访问并暂缓选择，不能虚构候选。可先使用已审查的 shadcn/21st 结构完成行为，再在可访问会话补选 Uiverse 微交互。
+- 实施前以 [组件来源清单](../../openspec/changes/redesign-uni2api-frontend/component-sourcing-register.md) 为准：它固定 `ConsoleShell`、`ConsoleSidebar`、`CommandMenu`、`DashboardSignalGroup`、`QuickCreatePanel`、`UploadPreview`、`SoftSurface`、`EmptyState`、`DataTableShell`、`SettingsNav` 的本地落点、候选链接、许可证门槛和审核状态；计划阶段的短名单不等于已采用代码。
+
+### 12.2 候选分工
+
+- 侧栏、命令面板、工作台信号组、设置目录、图片库批量操作、空状态和上传预览：优先从 21st.dev 选择结构候选。
+- 按钮、输入、选择、checkbox、dialog、sheet、popover、tabs、table、calendar 与 toast：始终由 shadcn/ui 承担语义和交互。
+- Soft UI 按入输入面、主按钮触感、toggle/checkbox 反馈、loader、tooltip 和局部卡片微交互：从 Uiverse Elements 选择并本地适配。
+- 拒绝营销型 dashboard 卡片、复杂动画、直接 CDN 引用、无语义 click-div、未经审查的许可证和与当前 Radix/motion 重叠的依赖。
 
 ## 13. 禁止项
 
