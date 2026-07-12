@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Bot, FileCog, GalleryVerticalEnd, Images, LayoutDashboard, ListTree, Settings2, UserRoundCog, Wrench } from "lucide-react";
+import { Bot, FileCog, GalleryVerticalEnd, Images, LayoutDashboard, ListTree, Settings2, UserPlus, UserRoundCog, Wrench } from "lucide-react";
 
 import type { AuthRole } from "@/store/auth";
 
@@ -16,6 +16,7 @@ export const consoleNavigation: ConsoleNavigationItem[] = [
   { href: "/image", label: "开始创作", icon: Bot, roles: ["admin", "user"], group: "workspace" },
   { href: "/image-manager", label: "图片库", icon: Images, roles: ["admin"], group: "workspace" },
   { href: "/accounts", label: "账户池", icon: ListTree, roles: ["admin"], group: "operations" },
+  { href: "/register", label: "注册机", icon: UserPlus, roles: ["admin"], group: "operations" },
   { href: "/users", label: "用户管理", icon: UserRoundCog, roles: ["admin"], group: "operations" },
   { href: "/logs", label: "运行日志", icon: GalleryVerticalEnd, roles: ["admin"], group: "operations" },
   { href: "/settings", label: "设置", icon: Settings2, roles: ["admin"], group: "operations" },

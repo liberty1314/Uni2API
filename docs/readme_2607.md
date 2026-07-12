@@ -88,3 +88,30 @@
     - web/src/lib/workspace-draft.ts
     - web/src/store/auth.ts
     - docs/readme_2607.md
+
+- [2026-07-12 21:26] feat(register): 恢复自动注册与邮箱池管理能力
+  - Body: 恢复管理员注册机 API、邮箱提供商、OpenAI 注册流程、任务状态同步和前端管理页面，并接入代理清障、备份配置与管理员导航。同步补充权限及代理测试，以及 FlareSolverr 部署和 Cloudflare 清障文档。
+  - Files:
+    - README.md
+    - api/app.py
+    - api/register.py
+    - docs/deployment.md
+    - docs/flaresolverr-cloudflare.md
+    - openspec/changes/redesign-uni2api-frontend/legacy-route-retirement-map.md
+    - openspec/changes/redesign-uni2api-frontend/tasks.md
+    - services/backup_service.py
+    - services/config.py
+    - services/register/__init__.py
+    - services/register/mail_provider.py
+    - services/register/openai_register.py
+    - services/register_service.py
+    - test/test_register_api.py
+    - test/test_register_proxy_runtime.py
+    - web/src/app/register/components/register-card.tsx
+    - web/src/app/register/page.tsx
+    - web/src/app/settings/components/backup-settings-card.tsx
+    - web/src/app/settings/components/proxy-runtime-card.tsx
+    - web/src/app/settings/store.ts
+    - web/src/components/console/navigation.ts
+    - web/src/lib/api.ts
+    - docs/readme_2607.md

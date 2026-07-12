@@ -24,7 +24,7 @@ git --version
 | --- | --- |
 | `config.json` | 主配置、后台密钥、代理、图片、备份等配置 |
 | `.env` | Docker compose 环境变量 |
-| `data/` | 账号、日志、图片、任务记录等运行数据 |
+| `data/` | 账号、注册配置、日志、图片、任务记录等运行数据 |
 
 升级和迁移时重点保留以上内容。
 
@@ -76,7 +76,7 @@ docker compose down
 
 ## 方式二：WARP / FlareSolverr 部署
 
-适合上游请求经常遇到 Cloudflare 拦截的场景。该方式会启动：
+适合注册或上游请求经常遇到 Cloudflare 拦截的场景。该方式会启动：
 
 - `warp-proxy`
 - `privoxy`
@@ -108,7 +108,7 @@ docker compose -f docker-compose.warp.yml up -d --build
 http://localhost:3000
 ```
 
-FlareSolverr 相关配置可以在后台设置页的 `FlareSolverr` tab 中查看和测试。
+FlareSolverr 相关配置可以在后台设置页的 `FlareSolverr` tab 中查看和测试。注册链路的具体清障流程见 [FlareSolverr 处理 Cloudflare 拦截](./flaresolverr-cloudflare.md)。
 
 查看容器状态：
 

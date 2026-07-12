@@ -54,6 +54,9 @@
 
 ## 7. 账户、日志、设置与实验室迁移
 
+> 2026-07-12 上游兼容恢复：当前项目基于 `basketikun/chatgpt2api` 的 `1f96b49 refactor: remove registration functionality and related configurations` 之后版本，导致 `66fee0c` 时仍存在的注册机被整体删除。本次没有硬重置 Uni2API，而是从本地上游仓库 `/Users/abner/Desktop/MyProject/chatgpt2api` 的 `66fee0c133599fc443997340ca00061a8ee261d9` 选择性恢复注册 API、注册服务、邮箱提供商、OpenAI 注册流程、配置/备份字段、前端 API/store、`/register` 页面和管理员导航。保留当前 `openai_oauth.py`、工作台、认证角色和新壳层；新增注册 API 权限测试并恢复代理运行时测试。注册页已接入 Uni2API 壳层，后续仍需按 7.x/9.x 完成全面 Soft UI 与断点迁移。
+
+- [x] 7.0 从上游 `66fee0c` 选择性恢复注册机后端、配置备份、前端 API/store、管理员 `/register` 页面和侧栏入口；保留当前 OAuth 与前端重设计，并通过注册 API 权限测试、代理运行时测试、TypeScript、相关 ESLint 和生产构建验证。
 - [ ] 7.1 以 shadcn/ui Table/Sheet/Checkbox 为行为基础，适配经审查的 21st.dev Table 与 Uiverse 状态/操作候选，将 `/accounts` 迁移到 Soft UI 表格容器，连接可用/限流/异常/禁用摘要筛选，保留排序、批量操作、详情 Sheet 和导入流程。
 - [ ] 7.2 以 shadcn/ui Table/Dialog/Popover 为行为基础，适配经审查的 21st.dev Table/Command 候选和 Uiverse loading/tooltip 候选，将 `/logs` 迁移到固定筛选栏与可展开结构化详情，保留删除行为并提供关联账户、任务和复制诊断信息操作。
 - [ ] 7.3 以 shadcn/ui Tabs/Sheet/Dialog 为行为基础，适配经审查的 21st.dev Settings/Sidebar 候选和 Uiverse 控件表面候选，将 `/settings` 从横向主标签迁移为二级设置导航；保留现有 Zustand 初始化、轮询和 API 保存流程，补齐脏状态和离开确认。

@@ -33,7 +33,7 @@ docker compose up -d
 
 ### WARP / FlareSolverr 稳定代理部署
 
-如果图片链路经常遇到 Cloudflare 拦截，可以启用附带的 WARP + Privoxy + FlareSolverr 方案：
+如果注册或图片链路经常遇到 Cloudflare 拦截，可以启用附带的 WARP + Privoxy + FlareSolverr 方案：
 
 ```bash
 cp .env.example .env
@@ -51,6 +51,8 @@ docker compose -f docker-compose.warp.yml up -d --build
 默认只让上游 OpenAI / ChatGPT 请求走稳定代理，账号邮箱、CPA 等辅助链路不会被强制接管。账号自身配置的代理优先级最高，其次是稳定代理运行时，再其次是显式代理和旧版全局代理。
 
 可在 `.env` 中调整端口和代理运行时参数，也可在后台设置页的「稳定代理运行时」面板手动保存、测试代理和测试 clearance。
+
+注册机入口位于管理员侧栏的「注册机」，详细的 Cloudflare 清障配置见 [docs/flaresolverr-cloudflare.md](docs/flaresolverr-cloudflare.md)。
 
 ### 本地开发
 
