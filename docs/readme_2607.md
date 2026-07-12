@@ -6,3 +6,16 @@
     - web/pnpm-lock.yaml
     - web/pnpm-workspace.yaml
     - docs/readme_2607.md
+
+- [2026-07-12 11:34] docs(frontend): 完善前端重设计方案与工作台草图
+  - Body: 补充 Uni2API 双核心工作台的信息架构、Soft UI 视觉系统、响应式与无障碍规范，并提供管理员工作台高保真设计草图和配套作品资源。
+  - Files:
+    - .gitignore
+    - docs/design/assets/uni2api-admin-dashboard-soft-ui.html
+    - docs/design/assets/uni2api-admin-dashboard-soft-ui.png
+    - docs/design/assets/work-desert.jpg
+    - docs/design/assets/work-forest.jpg
+    - docs/design/assets/work-night.jpg
+    - docs/design/assets/work-ocean.jpg
+    - docs/design/uni2api-frontend-redesign.md
+    - docs/readme_2607.md

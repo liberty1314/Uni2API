@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uni2API 管理员工作台设计草图</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      --canvas: #e9eef7;
+      --raised: #eef3fa;
+      --sunken: #e4eaf4;
+      --ink: #263651;
+      --ink-2: #53627a;
+      --muted: #5d6c82;
+      --primary: #4260e8;
+      --primary-dark: #3f5ce0;
+      --coral: #f28c73;
+      --success: #1d745d;
+      --warning: #9b5819;
+      --danger: #c94c5a;
+      --light: rgba(255,255,255,.82);
+      --shade: rgba(134,149,178,.32);
+      --shadow-sm: -4px -4px 9px rgba(255,255,255,.78), 4px 4px 9px rgba(134,149,178,.30);
+      --shadow-md: -8px -8px 18px rgba(255,255,255,.82), 8px 8px 18px rgba(134,149,178,.32);
+      --shadow-inset: inset -4px -4px 8px rgba(255,255,255,.72), inset 4px 4px 8px rgba(134,149,178,.24);
+    }
+    html, body { margin: 0; width: 1440px; height: 1024px; overflow: hidden; }
+    body {
+      color: var(--ink);
+      background: var(--canvas);
+      font-family: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+    button, input, textarea { font: inherit; }
+    button { cursor: default; }
+    .app { display: grid; grid-template-columns: 236px minmax(0, 1fr); height: 100%; padding: 18px; gap: 24px; }
+    .sidebar {
+      display: flex; flex-direction: column; min-height: 0; padding: 22px 14px 16px;
+      border-radius: 20px; background: var(--raised); box-shadow: var(--shadow-md);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 22px; }
+    .brand-mark {
+      width: 40px; height: 40px; display: grid; place-items: center; border-radius: 14px;
+      color: white; font-size: 15px; font-weight: 760; background: var(--primary);
+      box-shadow: 0 8px 16px rgba(75,107,251,.27), inset 0 1px 0 rgba(255,255,255,.28);
+    }
+    .brand-name { font-size: 18px; font-weight: 750; line-height: 1.1; }
+    .brand-copy { margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 600; }
+    .nav-section { margin-top: 10px; }
+    .nav-label { padding: 0 12px 7px; color: var(--muted); font-size: 10px; font-weight: 650; }
+    .nav-item {
+      display: flex; align-items: center; gap: 11px; height: 43px; margin: 3px 0; padding: 0 12px;
+      border-radius: 14px; color: var(--ink-2); font-size: 13px; font-weight: 620;
+    }
+    .nav-item svg { width: 18px; height: 18px; stroke-width: 1.8; }
+    .nav-item.active { color: var(--primary-dark); background: var(--sunken); box-shadow: var(--shadow-inset); }
+    .nav-item .chevron { margin-left: auto; width: 15px; }
+    .nav-badge { margin-left: auto; min-width: 24px; padding: 2px 7px; border-radius: 999px; color: var(--danger); background: #f7dfe4; font-size: 10px; text-align: center; }
+    .sidebar-foot { margin-top: auto; padding: 14px 8px 0; }
+    .system-pill {
+      display: flex; align-items: center; gap: 9px; padding: 12px; border-radius: 14px;
+      color: var(--success); background: var(--raised); box-shadow: var(--shadow-sm); font-size: 11px; font-weight: 700;
+    }
+    .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 4px rgba(37,132,107,.12); }
+    .version { padding: 13px 4px 0; color: var(--muted); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; }
+    .main { min-width: 0; overflow: hidden; padding: 3px 7px 0 0; }
+    .topbar { height: 72px; display: flex; align-items: center; justify-content: space-between; }
+    .welcome-note { color: var(--muted); font-size: 12px; font-weight: 600; }
+    h1 { margin: 6px 0 0; font-size: 28px; line-height: 36px; font-weight: 760; }
+    .top-tools { display: flex; align-items: center; gap: 12px; }
+    .search {
+      width: 232px; height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 14px;
+      border-radius: 16px; color: var(--muted); background: var(--sunken); box-shadow: var(--shadow-inset);
+    }
+    .search svg { width: 17px; }
+    .search span { flex: 1; font-size: 12px; }
+    kbd { padding: 3px 7px; border-radius: 8px; color: var(--ink-2); background: var(--raised); box-shadow: var(--shadow-sm); font: 10px ui-monospace, monospace; }
+    .icon-btn, .avatar {
+      width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 15px;
+      color: var(--ink-2); background: var(--raised); box-shadow: var(--shadow-sm);
+    }
+    .icon-btn svg { width: 18px; }
+    .avatar { color: white; font-size: 12px; font-weight: 760; background: var(--primary); box-shadow: 0 7px 15px rgba(75,107,251,.26); }
+    .signal-summary {
+      height: 104px; display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 15px;
+      border-radius: 20px; background: var(--raised); box-shadow: var(--shadow-md); overflow: hidden;
+    }
+    .signal-cell { position: relative; display: flex; align-items: center; gap: 13px; padding: 19px 20px; }
+    .signal-cell + .signal-cell::before { content: ""; position: absolute; left: 0; top: 23px; bottom: 23px; width: 1px; background: rgba(117,134,164,.20); }
+    .signal-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 14px; background: var(--sunken); box-shadow: var(--shadow-inset); }
+    .signal-icon svg { width: 19px; }
+    .signal-icon.success { color: var(--success); }
+    .signal-icon.primary { color: var(--primary); }
+    .signal-icon.coral { color: var(--coral); }
+    .signal-label { color: var(--muted); font-size: 11px; font-weight: 600; }
+    .signal-value { margin-top: 5px; font-size: 21px; line-height: 24px; font-weight: 750; font-variant-numeric: tabular-nums; }
+    .signal-value.good { color: var(--success); }
+    .signal-meta { margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1.52fr) minmax(330px, .72fr); gap: 24px; margin-top: 24px; }
+    .panel { border-radius: 20px; background: var(--raised); box-shadow: var(--shadow-md); }
+    .composer { height: 349px; padding: 24px; }
+    .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    h2 { margin: 0; font-size: 18px; line-height: 26px; font-weight: 720; }
+    .panel-sub { margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .model-switch { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 11px; border-radius: 12px; color: var(--primary-dark); background: var(--sunken); box-shadow: var(--shadow-inset); font: 10px ui-monospace, monospace; }
+    .model-switch svg { width: 14px; }
+    .prompt-wrap { position: relative; height: 142px; margin-top: 19px; padding: 16px 17px; border-radius: 17px; background: var(--sunken); box-shadow: var(--shadow-inset); }
+    .prompt-label { display: block; margin-bottom: 9px; color: var(--ink-2); font-size: 11px; font-weight: 670; }
+    .prompt-text { width: 100%; height: 62px; padding: 0; resize: none; border: 0; outline: none; color: var(--ink); background: transparent; font-size: 13px; line-height: 21px; }
+    .prompt-text::placeholder { color: #74829a; opacity: 1; }
+    .prompt-meta { position: absolute; left: 17px; right: 17px; bottom: 12px; display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
+    .control-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 18px; }
+    .controls { display: flex; gap: 10px; }
+    .soft-control { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 13px; border: 0; border-radius: 14px; color: var(--ink-2); background: var(--raised); box-shadow: var(--shadow-sm); font-size: 11px; font-weight: 620; }
+    .soft-control svg { width: 16px; }
+    .primary-btn { height: 44px; display: flex; align-items: center; gap: 9px; padding: 0 20px; border: 0; border-radius: 15px; color: white; background: var(--primary); box-shadow: 0 9px 18px rgba(75,107,251,.28), inset 0 1px 0 rgba(255,255,255,.25); font-size: 12px; font-weight: 700; }
+    .primary-btn svg { width: 17px; }
+    .signals { height: 349px; padding: 22px; }
+    .signal-state { display: flex; align-items: center; gap: 8px; color: var(--success); font-size: 11px; font-weight: 700; }
+    .signal-state .pulse { width: 7px; height: 7px; }
+    .alert-block { margin-top: 16px; padding: 15px; border-radius: 16px; background: #f2e7e2; box-shadow: inset -3px -3px 7px rgba(255,255,255,.70), inset 3px 3px 7px rgba(175,137,130,.18); }
+    .alert-top { display: flex; align-items: center; gap: 9px; color: var(--warning); font-size: 12px; font-weight: 720; }
+    .alert-top svg { width: 17px; }
+    .alert-copy { margin: 8px 0 0 26px; color: #6d5c59; font-size: 10px; line-height: 16px; }
+    .alert-action { margin: 10px 0 0 26px; color: var(--warning); font-size: 10px; font-weight: 700; }
+    .health-list { margin-top: 14px; }
+    .health-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 3px; }
+    .health-row + .health-row { border-top: 1px solid rgba(116,133,163,.16); }
+    .health-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 10px; color: var(--success); background: var(--sunken); box-shadow: var(--shadow-inset); }
+    .health-icon svg { width: 15px; }
+    .health-name { font-size: 11px; font-weight: 670; }
+    .health-note { margin-top: 2px; color: var(--muted); font-size: 9px; }
+    .health-value { color: var(--ink-2); font: 10px ui-monospace, monospace; }
+    .recent { margin-top: 24px; }
+    .recent-head { display: flex; align-items: flex-end; justify-content: space-between; padding: 0 3px 12px; }
+    .text-link { display: flex; align-items: center; gap: 7px; color: var(--primary-dark); font-size: 11px; font-weight: 700; }
+    .text-link svg { width: 15px; }
+    .gallery { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+    .work-card { position: relative; height: 194px; padding: 8px; border-radius: 18px; background: var(--raised); box-shadow: var(--shadow-sm); overflow: hidden; }
+    .work-img { width: 100%; height: 100%; display: block; border-radius: 13px; object-fit: cover; }
+    .work-overlay { position: absolute; left: 15px; right: 15px; bottom: 14px; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; padding: 28px 9px 9px; border-radius: 0 0 11px 11px; color: white; background: linear-gradient(to bottom, transparent, rgba(20,28,43,.78)); }
+    .work-title { font-size: 11px; font-weight: 680; }
+    .work-time { margin-top: 2px; color: rgba(255,255,255,.72); font-size: 9px; }
+    .work-more { width: 27px; height: 27px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 9px; background: rgba(255,255,255,.18); }
+    .work-more svg { width: 14px; }
+    .floating-status { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 13px; border-radius: 14px; color: var(--ink-2); background: var(--raised); box-shadow: var(--shadow-sm); font-size: 10px; white-space: nowrap; }
+    .floating-status strong { color: var(--success); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">U2</div>
+        <div><div class="brand-name">Uni2API</div><div class="brand-copy">创作与运行控制台</div></div>
+      </div>
+      <nav>
+        <div class="nav-section">
+          <div class="nav-label">概览</div>
+          <div class="nav-item active"><i data-lucide="layout-dashboard"></i><span>工作台</span></div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-label">创作</div>
+          <div class="nav-item"><i data-lucide="sparkles"></i><span>图像创作</span></div>
+          <div class="nav-item"><i data-lucide="images"></i><span>图片库</span><span class="nav-badge" style="color:#4b6bfb;background:#dfe5ff">142</span></div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-label">管理</div>
+          <div class="nav-item"><i data-lucide="users-round"></i><span>账户池</span><span class="nav-badge">2</span></div>
+          <div class="nav-item"><i data-lucide="scroll-text"></i><span>运行日志</span></div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-label">系统</div>
+          <div class="nav-item"><i data-lucide="settings-2"></i><span>设置</span></div>
+          <div class="nav-item"><i data-lucide="flask-conical"></i><span>实验室</span><i class="chevron" data-lucide="chevron-right"></i></div>
+        </div>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="system-pill"><span class="pulse"></span><span>系统运行正常</span></div>
+        <div class="version">Uni2API v2.6.0</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><div class="welcome-note">下午好，管理员</div><h1>运行稳定，可以开始创作</h1></div>
+        <div class="top-tools">
+          <div class="floating-status"><span class="pulse"></span><span><strong>3 个任务</strong>正在后台运行</span></div>
+          <div class="search"><i data-lucide="search"></i><span>搜索页面、账户或任务</span><kbd>⌘K</kbd></div>
+          <button class="icon-btn" aria-label="切换主题"><i data-lucide="sun-medium"></i></button>
+          <button class="icon-btn" aria-label="通知"><i data-lucide="bell"></i></button>
+          <button class="avatar" aria-label="管理员账户">AD</button>
+        </div>
+      </header>
+
+      <section class="signal-summary">
+        <div class="signal-cell"><div class="signal-icon success"><i data-lucide="circle-check-big"></i></div><div><div class="signal-label">服务状态</div><div class="signal-value good">正常</div><div class="signal-meta">所有核心能力可用</div></div></div>
+        <div class="signal-cell"><div class="signal-icon primary"><i data-lucide="users"></i></div><div><div class="signal-label">可用账户</div><div class="signal-value">24 / 31</div><div class="signal-meta">较昨日增加 2 个</div></div></div>
+        <div class="signal-cell"><div class="signal-icon coral"><i data-lucide="loader-circle"></i></div><div><div class="signal-label">运行任务</div><div class="signal-value">03</div><div class="signal-meta">2 个生成 · 1 个编辑</div></div></div>
+        <div class="signal-cell"><div class="signal-icon success"><i data-lucide="activity"></i></div><div><div class="signal-label">24h 成功率</div><div class="signal-value">98.6%</div><div class="signal-meta">共 1,284 次调用</div></div></div>
+      </section>
+
+      <section class="workspace">
+        <div class="panel composer">
+          <div class="panel-head"><div><h2>快速创作</h2><div class="panel-sub">生成任务会在完整创作页继续运行</div></div><div class="model-switch"><i data-lucide="cpu"></i>gpt-image-2<i data-lucide="chevron-down"></i></div></div>
+          <div class="prompt-wrap"><label class="prompt-label">提示词</label><textarea class="prompt-text" placeholder="描述你想生成的图像，例如：一座被晨雾包围的未来植物研究站…"></textarea><div class="prompt-meta"><span>支持中文与英文提示词</span><span>⌘ Enter 发起</span></div></div>
+          <div class="control-row"><div class="controls"><button class="soft-control"><i data-lucide="scan"></i>1:1<i data-lucide="chevron-down"></i></button><button class="soft-control"><i data-lucide="image-plus"></i>添加参考图</button><button class="soft-control"><i data-lucide="copy-plus"></i>1 张<i data-lucide="chevron-down"></i></button></div><button class="primary-btn"><i data-lucide="sparkles"></i>开始创作<i data-lucide="arrow-right"></i></button></div>
+        </div>
+
+        <aside class="panel signals">
+          <div class="panel-head"><div><h2>运行信号</h2><div class="panel-sub">异常优先，不打断正常创作</div></div><div class="signal-state"><span class="pulse"></span>无阻断异常</div></div>
+          <div class="alert-block"><div class="alert-top"><i data-lucide="triangle-alert"></i>稳定代理延迟升高</div><div class="alert-copy">最近 10 分钟平均响应 1.8s，当前请求仍可正常完成。</div><div class="alert-action">查看代理运行状态 →</div></div>
+          <div class="health-list">
+            <div class="health-row"><div class="health-icon"><i data-lucide="shield-check"></i></div><div><div class="health-name">账户池健康</div><div class="health-note">24 个账户可参与轮询</div></div><div class="health-value">77%</div></div>
+            <div class="health-row"><div class="health-icon"><i data-lucide="cloud-check"></i></div><div><div class="health-name">存储连接正常</div><div class="health-note">最近备份于 13:42 完成</div></div><div class="health-value">R2</div></div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="recent">
+        <div class="recent-head"><div><h2>最近作品</h2><div class="panel-sub">继续编辑，或直接作为新任务的参考图</div></div><div class="text-link">查看图片库 <i data-lucide="arrow-right"></i></div></div>
+        <div class="gallery">
+          <article class="work-card"><img class="work-img" src="./work-forest.jpg" alt="雾林研究站作品缩略图" /><div class="work-overlay"><div><div class="work-title">雾林研究站</div><div class="work-time">14:08 · gpt-image-2</div></div><span class="work-more"><i data-lucide="ellipsis"></i></span></div></article>
+          <article class="work-card"><img class="work-img" src="./work-night.jpg" alt="星际观测站作品缩略图" /><div class="work-overlay"><div><div class="work-title">星际观测站</div><div class="work-time">13:51 · gpt-image-2</div></div><span class="work-more"><i data-lucide="ellipsis"></i></span></div></article>
+          <article class="work-card"><img class="work-img" src="./work-desert.jpg" alt="森林路径作品缩略图" /><div class="work-overlay"><div><div class="work-title">林间漫游</div><div class="work-time">12:26 · codex-image</div></div><span class="work-more"><i data-lucide="ellipsis"></i></span></div></article>
+          <article class="work-card"><img class="work-img" src="./work-ocean.jpg" alt="深海光域作品缩略图" /><div class="work-overlay"><div><div class="work-title">深海光域</div><div class="work-time">11:44 · gpt-image-2</div></div><span class="work-more"><i data-lucide="ellipsis"></i></span></div></article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script>window.addEventListener('load', () => lucide.createIcons());</script>
+</body>
+</html>
