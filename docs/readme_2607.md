@@ -1,0 +1,8 @@
+- [2026-07-12 09:23] feat(dev): 新增本地开发环境管理脚本
+  - Body: 新增基于 uv 与 pnpm 的本地环境准备、诊断、服务启停、状态及日志管理能力，并补充前端依赖锁定与构建许可配置。
+  - Files:
+    - .gitignore
+    - scripts/local.sh
+    - web/pnpm-lock.yaml
+    - web/pnpm-workspace.yaml
+    - docs/readme_2607.md
