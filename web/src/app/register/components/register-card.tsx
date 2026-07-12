@@ -52,6 +52,7 @@ export function RegisterCard() {
       ...(type === "cloudmail_gen" ? { api_base: "", admin_email: "", admin_password: "", domain: [], subdomain: [], email_prefix: "" } : {}),
       ...(type === "cloudflare_temp_email" ? { api_base: "", admin_password: "", domain: [] } : {}),
       ...(type === "tempmail_lol" ? { api_key: "", domain: [] } : {}),
+      ...(type === "tempmail_plus" ? { api_base: "https://tempmail.plus", domain: [], mailbox_name: "", inbox_address: "", epin: "" } : {}),
       ...(type === "moemail" ? { api_base: "", api_key: "", domain: [] } : {}),
       ...(type === "inbucket" ? { api_base: "", domain: [], random_subdomain: true } : {}),
       ...(type === "duckmail" ? { api_key: "", default_domain: "duckmail.sbs" } : {}),
@@ -188,6 +189,7 @@ export function RegisterCard() {
                             <SelectItem value="cloudmail_gen">cloudmail_gen</SelectItem>
                             <SelectItem value="cloudflare_temp_email">cloudflare_temp_email</SelectItem>
                             <SelectItem value="tempmail_lol">tempmail_lol</SelectItem>
+                            <SelectItem value="tempmail_plus">tempmail_plus</SelectItem>
                             <SelectItem value="moemail">moemail</SelectItem>
                             <SelectItem value="inbucket">inbucket_mail</SelectItem>
                             <SelectItem value="duckmail">duckmail</SelectItem>
@@ -198,11 +200,11 @@ export function RegisterCard() {
                           </SelectContent>
                         </Select>
                       </div>
-                      {type === "cloudmail_gen" || type === "cloudflare_temp_email" || type === "moemail" || type === "inbucket" || type === "yyds_mail" || type === "ddg_mail" ? (
+                      {type === "cloudmail_gen" || type === "cloudflare_temp_email" || type === "tempmail_plus" || type === "moemail" || type === "inbucket" || type === "yyds_mail" || type === "ddg_mail" ? (
                         <>
                           <div className="space-y-2">
                             <label className="text-sm text-stone-700">{type === "cloudmail_gen" ? "CloudMail URL" : "API Base"}</label>
-                            <Input value={String(provider.api_base || "")} onChange={(event) => updateProvider(index, { api_base: event.target.value })} className="h-10 rounded-xl border-stone-200 bg-white" disabled={config.enabled} />
+                            <Input value={String(provider.api_base || "")} onChange={(event) => updateProvider(index, { api_base: event.target.value })} placeholder={type === "tempmail_plus" ? "https://tempmail.plus" : ""} className="h-10 rounded-xl border-stone-200 bg-white" disabled={config.enabled} />
                           </div>
                           {type === "cloudmail_gen" ? (
                             <>
@@ -220,6 +222,28 @@ export function RegisterCard() {
                             <div className="space-y-2">
                               <label className="text-sm text-stone-700">Admin Password</label>
                               <Input value={String(provider.admin_password || "")} onChange={(event) => updateProvider(index, { admin_password: event.target.value })} className="h-10 rounded-xl border-stone-200 bg-white" disabled={config.enabled} />
+                            </div>
+                          ) : null}
+                        </>
+                      ) : null}
+                      {type === "tempmail_plus" ? (
+                        <>
+                          <div className="space-y-2">
+                            <label className="text-sm text-stone-700">固定邮箱前缀</label>
+                            <Input value={String(provider.mailbox_name || "")} onChange={(event) => updateProvider(index, { mailbox_name: event.target.value })} placeholder="留空则随机生成" className="h-10 rounded-xl border-stone-200 bg-white" disabled={config.enabled} />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm text-stone-700">固定收件箱</label>
+                            <Input value={String(provider.inbox_address || "")} onChange={(event) => updateProvider(index, { inbox_address: event.target.value })} placeholder="例如 liberty@mailto.plus；留空则读取注册地址" className="h-10 rounded-xl border-stone-200 bg-white" disabled={config.enabled} />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm text-stone-700">EPIN</label>
+                            <Input type="password" autoComplete="new-password" value={String(provider.epin || "")} onChange={(event) => updateProvider(index, { epin: event.target.value })} placeholder="受保护收件箱填写" className="h-10 rounded-xl border-stone-200 bg-white" disabled={config.enabled} />
+                          </div>
+                          {String(provider.inbox_address || "").trim() || String(provider.mailbox_name || "").trim() ? (
+                            <div className="flex items-start gap-2 border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 md:col-span-2">
+                              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                              <span>固定收件箱无法区分并发注册邮件，请将注册线程数设置为 1。</span>
                             </div>
                           ) : null}
                         </>
@@ -338,7 +362,7 @@ export function RegisterCard() {
                       );
                     })() : null}
 
-                    {type === "cloudmail_gen" || type === "tempmail_lol" || type === "cloudflare_temp_email" || type === "moemail" || type === "inbucket" || type === "yyds_mail" || type === "ddg_mail" ? (
+                    {type === "cloudmail_gen" || type === "tempmail_lol" || type === "tempmail_plus" || type === "cloudflare_temp_email" || type === "moemail" || type === "inbucket" || type === "yyds_mail" || type === "ddg_mail" ? (
                       <div className="space-y-2">
                         <label className="text-sm text-stone-700">{type === "cloudmail_gen" ? "邮箱域名" : type === "inbucket" ? "基础域名列表" : "Domain"}</label>
                         <Textarea value={domains} onChange={(event) => updateProvider(index, { domain: event.target.value.split(/[\n,]/).map((item) => item.trim()) })} placeholder={type === "cloudmail_gen" ? "每行一个域名，留空则使用服务默认域名" : type === "inbucket" ? "每行一个基础域名，系统会自动生成随机子域名" : type === "moemail" ? "每行一个域名" : "每行一个域名，留空则使用服务默认域名"} className="min-h-20 rounded-xl border-stone-200 bg-white font-mono text-xs" disabled={config.enabled} />
