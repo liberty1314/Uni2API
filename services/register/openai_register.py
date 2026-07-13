@@ -46,6 +46,9 @@ platform_oauth_client_id = "app_2SKx67EdpoN0G6j64rFvigXD"
 platform_oauth_redirect_uri = f"{platform_base}/auth/callback"
 platform_oauth_audience = "https://api.openai.com/v1"
 platform_auth0_client = "eyJuYW1lIjoiYXV0aDAtc3BhLWpzIiwidmVyc2lvbiI6IjEuMjEuMCJ9"
+chatgpt_oauth_client_id = "app_X8zY6vW2pQ9tR3dE7nK1jL5gH"
+chatgpt_oauth_redirect_uri = "https://chatgpt.com/api/auth/callback/openai"
+chatgpt_oauth_scope = "openid email profile offline_access model.request model.read organization.read organization.write"
 user_agent = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -405,6 +408,7 @@ class PlatformRegistrar:
         self.device_id = str(uuid.uuid4())
         self.code_verifier = ""
         self.platform_auth_code = ""
+        self.signup_auth_code = ""
 
     def close(self) -> None:
         self.session.close()
@@ -504,6 +508,146 @@ class PlatformRegistrar:
         # 真正的判定交给 user/register（失败会 dump 完整响应）。
         step(index, f"platform authorize 完成[{landed or '?'}] url={str(getattr(resp, 'url', '') or '')[:160]}")
 
+    def _chatgpt_signup_authorize(self, email: str, index: int) -> None:
+        step(index, "开始 ChatGPT signup authorize")
+        self.session.cookies.set("oai-did", self.device_id, domain=".auth.openai.com")
+        self.session.cookies.set("oai-did", self.device_id, domain="auth.openai.com")
+        params = {
+            "client_id": chatgpt_oauth_client_id,
+            "audience": platform_oauth_audience,
+            "redirect_uri": chatgpt_oauth_redirect_uri,
+            "device_id": self.device_id,
+            "prompt": "login",
+            "screen_hint": "signup",
+            "scope": chatgpt_oauth_scope,
+            "response_type": "code",
+            "state": secrets.token_urlsafe(32),
+        }
+        target_url = f"{auth_base}/api/accounts/authorize?{urlencode(params)}"
+        headers = _headers_with_clearance(
+            self._navigate_headers("https://chatgpt.com/"),
+            target_url,
+            self.proxy,
+            self.clearance_user_agent,
+        )
+        with platform_authorize_lock:
+            resp, error = request_with_local_retry(self.session, "get", target_url, headers=headers, allow_redirects=True, verify=False)
+            if _is_cloudflare_challenge(resp):
+                bundle = self._refresh_cloudflare_clearance(auth_base, index)
+                if bundle is None:
+                    step(index, f"Cloudflare challenge 暂时不可清障，等待 {AUTHORIZE_CHALLENGE_RETRY_DELAY_SECONDS}s 后重试一次", "yellow")
+                    time.sleep(AUTHORIZE_CHALLENGE_RETRY_DELAY_SECONDS)
+                headers = _headers_with_clearance(
+                    self._navigate_headers("https://chatgpt.com/"),
+                    target_url,
+                    self.proxy,
+                    self.clearance_user_agent,
+                )
+                resp, error = request_with_local_retry(self.session, "get", target_url, headers=headers, allow_redirects=True, verify=False)
+                if _is_cloudflare_challenge(resp):
+                    prefix = "Cloudflare clearance 重试仍被拦截" if bundle is not None else "Cloudflare 冷却重试仍被拦截"
+                    raise RuntimeError(_cloudflare_block_message(resp, prefix, self.clearance_failure_reason))
+            if resp is None or resp.status_code != 200:
+                raise RuntimeError(error or f"chatgpt_signup_authorize_http_{getattr(resp, 'status_code', 'unknown')}")
+
+            continue_url = f"{auth_base}/api/accounts/authorize/continue"
+            continue_headers = self._json_headers(f"{auth_base}/create-account")
+            continue_headers["openai-sentinel-token"] = build_sentinel_token(self.session, self.device_id, "authorize_continue")
+            continue_headers = _headers_with_clearance(
+                continue_headers,
+                continue_url,
+                self.proxy,
+                self.clearance_user_agent,
+            )
+            resp, error = request_with_local_retry(
+                self.session,
+                "post",
+                continue_url,
+                json={"username": {"kind": "email", "value": email}, "screen_hint": "signup"},
+                headers=continue_headers,
+                verify=False,
+            )
+            if _is_cloudflare_challenge(resp):
+                raise RuntimeError(_cloudflare_block_message(resp, "ChatGPT signup continue 被 Cloudflare 拦截"))
+        if resp is None or resp.status_code != 200:
+            data = _response_json(resp) if resp is not None else {}
+            detail = f", detail={json.dumps(data, ensure_ascii=False)}" if data else ""
+            raise RuntimeError(error or f"chatgpt_signup_continue_http_{getattr(resp, 'status_code', 'unknown')}{detail}")
+        data = _response_json(resp)
+        page = data.get("page") if isinstance(data.get("page"), dict) else {}
+        page_type = str(page.get("type") or "")
+        if page_type == "create_account_password":
+            self._send_passwordless_signup_otp(index)
+        elif page_type not in {"email_otp_verification", "email_otp_verification_registration"}:
+            raise RuntimeError(f"chatgpt_signup_unexpected_page_{page_type or 'unknown'}")
+        step(index, f"ChatGPT signup authorize 完成[{page_type}]")
+
+    def _platform_authorize_existing_account(self, index: int) -> None:
+        step(index, "开始为新账号申请 Platform OAuth code")
+        self.code_verifier, code_challenge = _generate_pkce()
+        params = {
+            "issuer": auth_base,
+            "client_id": platform_oauth_client_id,
+            "audience": platform_oauth_audience,
+            "redirect_uri": platform_oauth_redirect_uri,
+            "device_id": self.device_id,
+            "scope": "openid profile email offline_access",
+            "response_type": "code",
+            "response_mode": "query",
+            "state": secrets.token_urlsafe(32),
+            "nonce": secrets.token_urlsafe(32),
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+            "auth0Client": platform_auth0_client,
+        }
+        target_url = f"{auth_base}/api/accounts/authorize?{urlencode(params)}"
+        headers = _headers_with_clearance(
+            self._navigate_headers("https://platform.openai.com/"),
+            target_url,
+            self.proxy,
+            self.clearance_user_agent,
+        )
+        with platform_authorize_lock:
+            resp, error = request_with_local_retry(self.session, "get", target_url, headers=headers, allow_redirects=True, verify=False)
+            if _is_cloudflare_challenge(resp):
+                bundle = self._refresh_cloudflare_clearance(auth_base, index)
+                if bundle is None:
+                    step(index, f"Cloudflare challenge 暂时不可清障，等待 {AUTHORIZE_CHALLENGE_RETRY_DELAY_SECONDS}s 后重试一次", "yellow")
+                    time.sleep(AUTHORIZE_CHALLENGE_RETRY_DELAY_SECONDS)
+                headers = _headers_with_clearance(
+                    self._navigate_headers("https://platform.openai.com/"),
+                    target_url,
+                    self.proxy,
+                    self.clearance_user_agent,
+                )
+                resp, error = request_with_local_retry(self.session, "get", target_url, headers=headers, allow_redirects=True, verify=False)
+                if _is_cloudflare_challenge(resp):
+                    prefix = "Cloudflare clearance 重试仍被拦截" if bundle is not None else "Cloudflare 冷却重试仍被拦截"
+                    raise RuntimeError(_cloudflare_block_message(resp, prefix, self.clearance_failure_reason))
+        if resp is None or resp.status_code not in (200, 302):
+            raise RuntimeError(error or f"platform_existing_authorize_http_{getattr(resp, 'status_code', 'unknown')}")
+        candidates = [
+            str(_response_json(resp).get("continue_url") or ""),
+            str(getattr(resp, "headers", {}).get("location") or ""),
+            str(getattr(resp, "url", "") or ""),
+        ]
+        for previous in getattr(resp, "history", []) or []:
+            candidates.extend(
+                [
+                    str(getattr(previous, "headers", {}).get("location") or ""),
+                    str(getattr(previous, "url", "") or ""),
+                ]
+            )
+        for candidate in candidates:
+            callback_params = extract_oauth_callback_params_from_url(candidate.strip())
+            if callback_params:
+                self.platform_auth_code = str(callback_params.get("code") or "").strip()
+                break
+        if not self.platform_auth_code:
+            debug = _response_debug_detail(resp)
+            raise RuntimeError(f"platform_existing_authorize_missing_code, {debug}")
+        step(index, "Platform OAuth code 获取完成")
+
     def _register_user(self, email: str, password: str, index: int) -> None:
         step(index, "开始提交注册密码")
         url = f"{auth_base}/api/accounts/user/register"
@@ -546,6 +690,35 @@ class PlatformRegistrar:
             raise RuntimeError(error or f"send_otp_http_{getattr(resp, 'status_code', 'unknown')}")
         step(index, "发送验证码完成")
 
+    def _send_passwordless_signup_otp(self, index: int) -> None:
+        step(index, "开始发送无密码注册验证码")
+        url = f"{auth_base}/api/accounts/passwordless/send-otp"
+        headers = _headers_with_clearance(
+            self._json_headers(f"{auth_base}/create-account/password"),
+            url,
+            self.proxy,
+            self.clearance_user_agent,
+        )
+        resp, error = request_with_local_retry(self.session, "post", url, headers=headers, verify=False)
+        if _is_cloudflare_challenge(resp):
+            bundle = self._refresh_cloudflare_clearance(auth_base, index)
+            if bundle is None:
+                raise RuntimeError(_cloudflare_block_message(resp, reason=self.clearance_failure_reason))
+            headers = _headers_with_clearance(
+                self._json_headers(f"{auth_base}/create-account/password"),
+                url,
+                self.proxy,
+                self.clearance_user_agent,
+            )
+            resp, error = request_with_local_retry(self.session, "post", url, headers=headers, verify=False)
+            if _is_cloudflare_challenge(resp):
+                raise RuntimeError(_cloudflare_block_message(resp, "Cloudflare clearance 重试仍被拦截"))
+        if resp is None or resp.status_code not in (200, 204, 302):
+            data = _response_json(resp) if resp is not None else {}
+            detail = f", detail={json.dumps(data, ensure_ascii=False)}" if data else ""
+            raise RuntimeError(error or f"passwordless_signup_otp_http_{getattr(resp, 'status_code', 'unknown')}{detail}")
+        step(index, "发送无密码注册验证码完成")
+
     def _validate_otp(self, code: str, index: int) -> None:
         step(index, f"开始校验验证码 {code}")
         resp, error = validate_otp(self.session, self.device_id, code)
@@ -579,7 +752,7 @@ class PlatformRegistrar:
             data = _response_json(resp) if resp is not None else {}
             error_data = data.get("error") if isinstance(data.get("error"), dict) else {}
             if error_data.get("code") == "registration_disallowed":
-                message = "平台拒绝该注册信息（registration_disallowed），请检查邮箱域名和注册资料是否符合平台规则"
+                message = "平台拒绝当前自动注册状态（registration_disallowed），请检查注册流程和资料是否符合平台规则"
                 step(index, message, "yellow")
                 raise RuntimeError(message)
             if data.get("message") == "Failed to create account. Please try again.":
@@ -588,7 +761,7 @@ class PlatformRegistrar:
             raise RuntimeError(error or f"create_account_http_{getattr(resp, 'status_code', 'unknown')}{detail}")
         data = _response_json(resp)
         callback_params = extract_oauth_callback_params_from_url(str(data.get("continue_url") or "").strip())
-        self.platform_auth_code = str((callback_params or {}).get("code") or "").strip()
+        self.signup_auth_code = str((callback_params or {}).get("code") or "").strip()
         step(index, "创建账号资料完成")
 
     def _exchange_registered_tokens(self, index: int) -> dict:
@@ -609,11 +782,8 @@ class PlatformRegistrar:
         label = str(mailbox.get("label") or "")
         step(index, f"邮箱创建完成[{label}]: {email}")
         try:
-            password = _random_password()
             first_name, last_name = _random_name()
-            self._platform_authorize(email, index)
-            self._register_user(email, password, index)
-            self._send_otp(index)
+            self._chatgpt_signup_authorize(email, index)
             step(index, "开始等待注册验证码")
             code = wait_for_code(mailbox, register_proxy=self.proxy)
             if not code:
@@ -621,6 +791,7 @@ class PlatformRegistrar:
             step(index, f"收到注册验证码: {code}")
             self._validate_otp(code, index)
             self._create_account(f"{first_name} {last_name}", _random_birthdate(), index)
+            self._platform_authorize_existing_account(index)
             tokens = self._exchange_registered_tokens(index)
         except Exception as error:
             mail_provider.mark_mailbox_result(mailbox, success=False, error=error)
@@ -628,7 +799,7 @@ class PlatformRegistrar:
         mail_provider.mark_mailbox_result(mailbox, success=True)
         return {
             "email": email,
-            "password": password,
+            "password": "",
             "access_token": str(tokens.get("access_token") or "").strip(),
             "refresh_token": str(tokens.get("refresh_token") or "").strip(),
             "id_token": str(tokens.get("id_token") or "").strip(),

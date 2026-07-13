@@ -216,8 +216,122 @@ class RegisterProxyRuntimeTests(unittest.TestCase):
             return_value=(response, ""),
         ):
             registrar = openai_register.PlatformRegistrar(proxy="")
-            with self.assertRaisesRegex(RuntimeError, "平台拒绝该注册信息"):
+            with self.assertRaisesRegex(RuntimeError, "平台拒绝当前自动注册状态"):
                 registrar._create_account("Test User", "2000-01-02", 1)
+
+    def test_register_uses_chatgpt_signup_then_platform_oauth(self):
+        mailbox = {"address": "new-user@qwe.pics", "label": "tempmail_plus"}
+
+        with patch.object(openai_register, "proxy_settings", FakeProxySettings()), patch.object(
+            openai_register,
+            "create_session",
+            return_value=FakeSession(),
+        ), patch.object(openai_register, "create_mailbox", return_value=mailbox), patch.object(
+            openai_register,
+            "wait_for_code",
+            return_value="123456",
+        ), patch.object(openai_register.mail_provider, "mark_mailbox_result"):
+            registrar = openai_register.PlatformRegistrar(proxy="")
+            with patch.object(
+                registrar,
+                "_chatgpt_signup_authorize",
+                create=True,
+            ) as signup_authorize_mock, patch.object(registrar, "_platform_authorize") as old_authorize_mock, patch.object(
+                registrar,
+                "_register_user",
+            ) as register_user_mock, patch.object(registrar, "_send_otp") as send_otp_mock, patch.object(
+                registrar,
+                "_send_passwordless_signup_otp",
+                create=True,
+            ) as passwordless_otp_mock, patch.object(registrar, "_validate_otp") as validate_otp_mock, patch.object(
+                registrar,
+                "_create_account",
+            ) as create_account_mock, patch.object(
+                registrar,
+                "_platform_authorize_existing_account",
+                create=True,
+            ) as platform_authorize_mock, patch.object(
+                registrar,
+                "_exchange_registered_tokens",
+                return_value={"access_token": "access", "refresh_token": "refresh", "id_token": "id"},
+            ):
+                result = registrar.register(1)
+
+        signup_authorize_mock.assert_called_once_with("new-user@qwe.pics", 1)
+        old_authorize_mock.assert_not_called()
+        passwordless_otp_mock.assert_not_called()
+        register_user_mock.assert_not_called()
+        send_otp_mock.assert_not_called()
+        validate_otp_mock.assert_called_once_with("123456", 1)
+        create_account_mock.assert_called_once()
+        platform_authorize_mock.assert_called_once_with(1)
+        self.assertEqual(result["password"], "")
+
+    def test_chatgpt_signup_authorize_uses_current_api_contract(self):
+        request_calls = []
+        responses = [
+            FakeResponse(status_code=200, url=f"{openai_register.auth_base}/create-account"),
+            FakeResponse(
+                status_code=200,
+                payload={"page": {"type": "email_otp_verification"}, "continue_url": "/email-verification"},
+                url=f"{openai_register.auth_base}/api/accounts/authorize/continue",
+            ),
+        ]
+
+        def fake_request(_session, method, url, **kwargs):
+            request_calls.append({"method": method, "url": url, "json": kwargs.get("json"), "headers": kwargs.get("headers")})
+            return responses.pop(0), ""
+
+        with patch.object(openai_register, "proxy_settings", FakeProxySettings()), patch.object(
+            openai_register,
+            "create_session",
+            return_value=FakeSession(),
+        ), patch.object(openai_register, "build_sentinel_token", return_value="sentinel-token"), patch.object(
+            openai_register,
+            "request_with_local_retry",
+            side_effect=fake_request,
+        ):
+            registrar = openai_register.PlatformRegistrar(proxy="")
+            self.assertTrue(
+                hasattr(registrar, "_chatgpt_signup_authorize"),
+                "注册器需要先使用 ChatGPT OAuth 客户端进入当前 signup 流程",
+            )
+            registrar._chatgpt_signup_authorize("new-user@qwe.pics", 1)
+
+        self.assertEqual(len(request_calls), 2)
+        self.assertEqual(request_calls[0]["method"], "get")
+        self.assertIn(f"client_id={openai_register.chatgpt_oauth_client_id}", request_calls[0]["url"])
+        self.assertNotIn("login_hint=", request_calls[0]["url"])
+        self.assertEqual(request_calls[1]["method"], "post")
+        self.assertEqual(request_calls[1]["url"], f"{openai_register.auth_base}/api/accounts/authorize/continue")
+        self.assertEqual(
+            request_calls[1]["json"],
+            {"username": {"kind": "email", "value": "new-user@qwe.pics"}, "screen_hint": "signup"},
+        )
+
+    def test_platform_authorize_existing_account_extracts_callback_code(self):
+        callback = FakeResponse(
+            status_code=200,
+            url=f"{openai_register.platform_oauth_redirect_uri}?code=platform-code&state=state",
+        )
+
+        with patch.object(openai_register, "proxy_settings", FakeProxySettings()), patch.object(
+            openai_register,
+            "create_session",
+            return_value=FakeSession(),
+        ), patch.object(openai_register, "request_with_local_retry", return_value=(callback, "")) as request_mock:
+            registrar = openai_register.PlatformRegistrar(proxy="")
+            self.assertTrue(
+                hasattr(registrar, "_platform_authorize_existing_account"),
+                "账号创建后需要在同一会话中单独申请 Platform OAuth code",
+            )
+            registrar._platform_authorize_existing_account(1)
+
+        self.assertEqual(registrar.platform_auth_code, "platform-code")
+        request_url = request_mock.call_args.args[2]
+        self.assertIn(f"client_id={openai_register.platform_oauth_client_id}", request_url)
+        self.assertNotIn("screen_hint=", request_url)
+        self.assertNotIn("login_hint=", request_url)
 
     def test_cloudflare_challenge_refreshes_clearance_and_retries_once_with_matching_headers(self):
         bundle = ClearanceBundle(

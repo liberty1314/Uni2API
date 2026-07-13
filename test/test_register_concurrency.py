@@ -110,7 +110,7 @@ class RegisterConcurrencyTests(unittest.TestCase):
                 "worker",
                 return_value={
                     "ok": False,
-                    "error": "平台拒绝该注册信息（registration_disallowed），请检查邮箱域名和注册资料是否符合平台规则",
+                    "error": "平台拒绝当前自动注册状态（registration_disallowed），请检查注册流程和资料是否符合平台规则",
                 },
             ) as worker_mock, mock.patch.object(
                 service,

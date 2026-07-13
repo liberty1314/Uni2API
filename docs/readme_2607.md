@@ -124,3 +124,12 @@
     - test/test_register_concurrency.py
     - test/test_register_proxy_runtime.py
     - docs/readme_2607.md
+
+- [2026-07-13 10:05] fix(register): 适配新版 ChatGPT 注册授权流程
+  - Body: 将自动注册切换为 ChatGPT signup 无密码验证码流程，并在账号资料创建后使用同一会话单独申请 Platform OAuth code。同步更新平台拒绝提示和注册流程契约测试。
+  - Files:
+    - services/register/openai_register.py
+    - services/register_service.py
+    - test/test_register_concurrency.py
+    - test/test_register_proxy_runtime.py
+    - docs/readme_2607.md

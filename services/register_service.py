@@ -330,7 +330,7 @@ class RegisterService:
                                     self._config["enabled"] = False
                                     self._save()
                                 self._append_log(
-                                    "检测到平台策略拒绝（registration_disallowed），已停止后续注册；请更换符合平台规则的邮箱域名或检查注册资料",
+                                    "检测到平台策略拒绝（registration_disallowed），已停止后续注册；请检查自动注册流程和注册资料",
                                     "red",
                                 )
                     except Exception:
