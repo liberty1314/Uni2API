@@ -75,6 +75,18 @@ def _normalize(raw: dict) -> dict:
     return cfg
 
 
+def _effective_register_threads(config: dict) -> int:
+    threads = max(1, int(config.get("threads") or 1))
+    mail = config.get("mail") if isinstance(config.get("mail"), dict) else {}
+    providers = mail.get("providers") if isinstance(mail.get("providers"), list) else []
+    for provider in providers:
+        if not isinstance(provider, dict) or not provider.get("enable") or provider.get("type") != "tempmail_plus":
+            continue
+        if str(provider.get("inbox_address") or "").strip() or str(provider.get("mailbox_name") or "").strip():
+            return 1
+    return threads
+
+
 class RegisterService:
     def __init__(self, store_file: Path):
         self._store_file = store_file
@@ -194,14 +206,16 @@ class RegisterService:
             self._drop_mail_proxy()
             self._logs = []
             metrics = self._pool_metrics()
-            self._config["stats"] = {"job_id": uuid.uuid4().hex, "success": 0, "fail": 0, "done": 0, "running": 0, "threads": self._config["threads"], **metrics, "started_at": _now(), "updated_at": _now()}
+            effective_threads = _effective_register_threads(self._config)
+            self._config["stats"] = {"job_id": uuid.uuid4().hex, "success": 0, "fail": 0, "done": 0, "running": 0, "threads": effective_threads, **metrics, "started_at": _now(), "updated_at": _now()}
             openai_register.config.update({k: self._config[k] for k in ("mail", "proxy", "total", "threads")})
             with openai_register.stats_lock:
                 openai_register.stats.update({"done": 0, "success": 0, "fail": 0, "start_time": time.time()})
             self._save()
             self._runner = threading.Thread(target=self._run, daemon=True, name="openai-register")
             self._runner.start()
-            self._append_log(f"注册任务启动，模式={self._config['mode']}，线程数={self._config['threads']}", "yellow")
+            thread_detail = f"（配置={self._config['threads']}，固定收件箱自动限流）" if effective_threads != self._config["threads"] else ""
+            self._append_log(f"注册任务启动，模式={self._config['mode']}，线程数={effective_threads}{thread_detail}", "yellow")
             return self.get()
 
     def stop(self) -> dict:
@@ -286,7 +300,7 @@ class RegisterService:
             self._save()
 
     def _run(self) -> None:
-        threads = int(self.get()["threads"])
+        threads = _effective_register_threads(self.get())
         submitted, done, success, fail = 0, 0, 0, 0
         with ThreadPoolExecutor(max_workers=threads) as executor:
             futures = set()
@@ -306,8 +320,19 @@ class RegisterService:
                     done += 1
                     try:
                         result = future.result()
-                        success += 1 if result.get("ok") else 0
-                        fail += 0 if result.get("ok") else 1
+                        if result.get("ok"):
+                            success += 1
+                        else:
+                            fail += 1
+                            error = str(result.get("error") or "")
+                            if "registration_disallowed" in error:
+                                with self._lock:
+                                    self._config["enabled"] = False
+                                    self._save()
+                                self._append_log(
+                                    "检测到平台策略拒绝（registration_disallowed），已停止后续注册；请更换符合平台规则的邮箱域名或检查注册资料",
+                                    "red",
+                                )
                     except Exception:
                         fail += 1
         self._bump(running=0, done=done, success=success, fail=fail, finished_at=_now())

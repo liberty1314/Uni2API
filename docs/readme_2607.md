@@ -115,3 +115,12 @@
     - web/src/components/console/navigation.ts
     - web/src/lib/api.ts
     - docs/readme_2607.md
+
+- [2026-07-13 09:30] fix(register): 修复注册并发与平台拒绝处理
+  - Body: 对固定 TempMail+ 收件箱自动限制单线程并串行化平台授权请求，降低并发触发 Cloudflare 拦截的风险。清障失败时增加冷却重试，并在平台返回 registration_disallowed 后停止后续注册任务。
+  - Files:
+    - services/register/openai_register.py
+    - services/register_service.py
+    - test/test_register_concurrency.py
+    - test/test_register_proxy_runtime.py
+    - docs/readme_2607.md

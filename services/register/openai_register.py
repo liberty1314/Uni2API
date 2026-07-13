@@ -54,8 +54,10 @@ user_agent = (
 sec_ch_ua = '"Google Chrome";v="145", "Not?A_Brand";v="8", "Chromium";v="145"'
 sec_ch_ua_full_version_list = '"Chromium";v="145.0.0.0", "Not:A-Brand";v="99.0.0.0", "Google Chrome";v="145.0.0.0"'
 default_timeout = 30
+AUTHORIZE_CHALLENGE_RETRY_DELAY_SECONDS = 5
 print_lock = threading.Lock()
 stats_lock = threading.Lock()
+platform_authorize_lock = threading.Lock()
 stats = {"done": 0, "success": 0, "fail": 0, "start_time": 0.0}
 register_log_sink = None
 
@@ -474,15 +476,23 @@ class PlatformRegistrar:
         target_url = f"{auth_base}/api/accounts/authorize?{urlencode(params)}"
         headers = self._navigate_headers(f"{platform_base}/")
         headers = _headers_with_clearance(headers, target_url, self.proxy, self.clearance_user_agent)
-        resp, error = request_with_local_retry(self.session, "get", target_url, headers=headers, allow_redirects=True, verify=False)
-        if _is_cloudflare_challenge(resp):
-            bundle = self._refresh_cloudflare_clearance(auth_base, index)
-            if bundle is None:
-                raise RuntimeError(_cloudflare_block_message(resp, reason=self.clearance_failure_reason))
-            retry_headers = _headers_with_clearance(self._navigate_headers(f"{platform_base}/"), target_url, self.proxy, self.clearance_user_agent)
-            resp, error = request_with_local_retry(self.session, "get", target_url, headers=retry_headers, allow_redirects=True, verify=False)
+        with platform_authorize_lock:
+            resp, error = request_with_local_retry(self.session, "get", target_url, headers=headers, allow_redirects=True, verify=False)
             if _is_cloudflare_challenge(resp):
-                raise RuntimeError(_cloudflare_block_message(resp, "Cloudflare clearance 重试仍被拦截"))
+                bundle = self._refresh_cloudflare_clearance(auth_base, index)
+                if bundle is None:
+                    step(index, f"Cloudflare challenge 暂时不可清障，等待 {AUTHORIZE_CHALLENGE_RETRY_DELAY_SECONDS}s 后重试一次", "yellow")
+                    time.sleep(AUTHORIZE_CHALLENGE_RETRY_DELAY_SECONDS)
+                retry_headers = _headers_with_clearance(
+                    self._navigate_headers(f"{platform_base}/"),
+                    target_url,
+                    self.proxy,
+                    self.clearance_user_agent,
+                )
+                resp, error = request_with_local_retry(self.session, "get", target_url, headers=retry_headers, allow_redirects=True, verify=False)
+                if _is_cloudflare_challenge(resp):
+                    prefix = "Cloudflare clearance 重试仍被拦截" if bundle is not None else "Cloudflare 冷却重试仍被拦截"
+                    raise RuntimeError(_cloudflare_block_message(resp, prefix, self.clearance_failure_reason))
         if resp is None or resp.status_code != 200:
             err = _response_json(resp).get("error", {}) if resp is not None else {}
             detail = f": {err.get('code', '')} - {err.get('message', '')}".strip(" -") if err else ""
@@ -567,6 +577,11 @@ class PlatformRegistrar:
                 raise RuntimeError(_cloudflare_block_message(resp, "Cloudflare clearance 重试仍被拦截"))
         if resp is None or resp.status_code not in (200, 302):
             data = _response_json(resp) if resp is not None else {}
+            error_data = data.get("error") if isinstance(data.get("error"), dict) else {}
+            if error_data.get("code") == "registration_disallowed":
+                message = "平台拒绝该注册信息（registration_disallowed），请检查邮箱域名和注册资料是否符合平台规则"
+                step(index, message, "yellow")
+                raise RuntimeError(message)
             if data.get("message") == "Failed to create account. Please try again.":
                 step(index, "创建账号失败提示: 邮箱域名很可能因滥用被封禁，请更换邮箱域名", "yellow")
             detail = f", detail={json.dumps(data, ensure_ascii=False)}" if data else ""
